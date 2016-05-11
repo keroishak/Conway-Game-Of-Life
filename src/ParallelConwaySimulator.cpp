@@ -112,6 +112,7 @@ void ParallelConwaySimulator::step()
 	auto cells = prev->aliveCells();
 	int ChunkPerThread=2;
 	int i;
+	cout<<omp_get_num_threads()<<endl;
 #pragma omp parallel private(i)
 	{
 #pragma omp for schedule(dynamic,ChunkPerThread)
