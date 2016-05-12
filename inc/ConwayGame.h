@@ -13,7 +13,7 @@ namespace ConwayGameOfLife{
         ConwayGame(string);
 
         ~ConwayGame();
-
+		void save();
         void init() override;
 
         void loadResources() override;
@@ -33,7 +33,7 @@ namespace ConwayGameOfLife{
 		int generations;
 		//size of the grid for drawing
 		int m_pixelSize;
-
+		int width;
 		void LoadFile(std::string );
 		//color of the grid
 		Break::Infrastructure::Color m_gridColor, m_cellColor;

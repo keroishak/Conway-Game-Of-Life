@@ -21,14 +21,23 @@ ConwayGame::ConwayGame(string filename)
 	m_serialSimulator = std::make_shared<SerialConwaySimulator>(m_universe);
 	m_parallelSimulator=std::make_shared<ParallelConwaySimulator>(m_universe);
 	left_down = right_down = false;
-	int rank;
+	/*int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 	if(rank==0)
 	{
-		this->LoadFile(filename);
-		//render points
+	this->LoadFile(filename);
+	//render points
 	}
 	MPI_Bcast(&generations,1,MPI_INT,0,MPI_COMM_WORLD);
+
+	for(int i=0;i<generations;++i)
+	{
+	cout<<"machine "<<rank<<" iteration i "<<i<<endl;
+	m_parallelSimulator->step();
+	}
+	if(rank==0)
+	save();*/
+	
 }
 
 ConwayGame::~ConwayGame()
@@ -60,6 +69,7 @@ void ConwayGame::LoadFile(string fileName)
 		getline(reader,temp);
 		generations=strtol(temp.c_str(),NULL,10);
 		getline(reader,temp);
+		width=strtol(temp.c_str(),NULL,10);
 		vector<int>indi;
 		while(!reader.eof())
 		{
@@ -78,8 +88,13 @@ void ConwayGame::LoadFile(string fileName)
 			if(a.size())
 				indi.push_back(strtol(a.c_str(),NULL,10));
 		}
-		for(int i=0;i<indi.size()-1;i+=2)
-			m_universe->turnOn(indi[i],indi[i+1]);
+		for(int i=0;i<indi.size();i++)
+		{
+			//m_universe->turnOn(indi[i],indi[i+1]);
+			int x=indi[i]/width;
+			int y=indi[i]%width;
+			m_universe->turnOn(x,y);
+		}
 	}
 	else
 		cout<<"unable to read this file!"<<endl;
@@ -100,69 +115,67 @@ void ConwayGame::cleanUp()
 }
 
 void ConwayGame::input()
-{
-	
+{	
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 	if(rank!=0)
-	{
-		for(int i=1;i<10;++i)   // 10 should be generations
-		m_parallelSimulator->step();
-		return;
-	}
-	if(Keyboard::getKey(Keyboard::Down) == Keyboard::State_Down)
-		m_translation.y -= 1;
+		for(int i=0;;++i)
+			m_parallelSimulator->step();
+		
+		if(Keyboard::getKey(Keyboard::Down) == Keyboard::State_Down)
+			m_translation.y -= 1;
 
-	if(Keyboard::getKey(Keyboard::Up) == Keyboard::State_Down)
-		m_translation.y += 1;
+		if(Keyboard::getKey(Keyboard::Up) == Keyboard::State_Down)
+			m_translation.y += 1;
 
-	if(Keyboard::getKey(Keyboard::Right) == Keyboard::State_Down)
-		m_translation.x -= 1;
+		if(Keyboard::getKey(Keyboard::Right) == Keyboard::State_Down)
+			m_translation.x -= 1;
 
-	if(Keyboard::getKey(Keyboard::Left) == Keyboard::State_Down)
-		m_translation.x += 1;
+		if(Keyboard::getKey(Keyboard::Left) == Keyboard::State_Down)
+			m_translation.x += 1;
 
-	if(Keyboard::getKey(Keyboard::Space) == Keyboard::State_Down)
-		m_translation = glm::ivec2(0);
+		if(Keyboard::getKey(Keyboard::Space) == Keyboard::State_Down)
+			m_translation = glm::ivec2(0);
 
-	if(Keyboard::getKey(Keyboard::S) == Keyboard::State_Down)
-		m_parallelSimulator->step();
+		if(Keyboard::getKey(Keyboard::S) == Keyboard::State_Down)
+			m_parallelSimulator->step();
 
-	if(Mouse::getButton(Mouse::Left_Button) == Mouse::State_Down){
-		left_down = true;
-	}
+		if(Mouse::getButton(Mouse::Left_Button) == Mouse::State_Down){
+			left_down = true;
+		}
 
-	if(left_down){
-		int x = Mouse::getPosition().x / m_pixelSize;
-		int y = Mouse::getPosition().y / m_pixelSize;
+		if(left_down){
+			int x = Mouse::getPosition().x / m_pixelSize;
+			int y = Mouse::getPosition().y / m_pixelSize;
 
-		m_universe->turnOn(x+(-m_translation.x), y+(-m_translation.y));
-	}
+			m_universe->turnOn(x+(-m_translation.x), y+(-m_translation.y));
+		}
 
-	if(Mouse::getButton(Mouse::Left_Button) == Mouse::State_Up){
-		left_down = false;
-	}
+		if(Mouse::getButton(Mouse::Left_Button) == Mouse::State_Up){
+			left_down = false;
+		}
 
-	if(Mouse::getButton(Mouse::Right_Button) == Mouse::State_Down){
-		right_down = true;
-	}
+		if(Mouse::getButton(Mouse::Right_Button) == Mouse::State_Down){
+			right_down = true;
+		}
 
-	if(right_down){
-		int x = Mouse::getPosition().x / m_pixelSize;
-		int y = Mouse::getPosition().y / m_pixelSize;
+		if(right_down){
+			int x = Mouse::getPosition().x / m_pixelSize;
+			int y = Mouse::getPosition().y / m_pixelSize;
 
-		m_universe->turnOff(x+(-m_translation.x), y+(-m_translation.y));
-	}
+			m_universe->turnOff(x+(-m_translation.x), y+(-m_translation.y));
+		}
 
-	if(Mouse::getButton(Mouse::Right_Button) == Mouse::State_Up){
-		right_down = false;
-	}
+		if(Mouse::getButton(Mouse::Right_Button) == Mouse::State_Up){
+			right_down = false;
+		}
 
-	if(Keyboard::getKey(Keyboard::Q) == Keyboard::State_Down && m_pixelSize < window->getWidth())
-		m_pixelSize += 1;
+		if(Keyboard::getKey(Keyboard::Q) == Keyboard::State_Down && m_pixelSize < window->getWidth())
+			m_pixelSize += 1;
 
-	if(Keyboard::getKey(Keyboard::A) == Keyboard::State_Down && m_pixelSize > 1)
-		m_pixelSize -= 1;
+		if(Keyboard::getKey(Keyboard::A) == Keyboard::State_Down && m_pixelSize > 1)
+			m_pixelSize -= 1;
+
 }
 
 void ConwayGame::update(TimeStep time)
@@ -197,4 +210,24 @@ void ConwayGame::render()
 		}
 	}
 	m_spriteBatch->end();
+}
+
+void ConwayGame::save()
+{
+	ofstream s("output.txt");
+	auto points=m_universe->aliveCells();
+	s<<generations;
+	s<<"\n";
+	s<<width;
+	s<<"\n";
+	for(int i=0;i<width;++i)
+	{
+		for(int j=0;j<width;++j)	
+			if(points.find(make_tuple(i,j))!=points.end())
+				s<<"1";
+			else
+				s<<"0";
+		s<<"\n";
+	}
+	s.close();
 }

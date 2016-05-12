@@ -6,7 +6,6 @@ ParallelConwaySimulator::ParallelConwaySimulator(std::shared_ptr<ConwayUniverse>
 
 	_Master=0;
 	MPI_Comm_size(MPI_COMM_WORLD,&_Processes);
-	//_Processes=4;
 }
 ParallelConwaySimulator::~ParallelConwaySimulator()
 {
@@ -90,8 +89,10 @@ void ParallelConwaySimulator::step()
 			{
 				ProcessesSizes[i]=chunk*2;
 				ProcessesSizes[i+1]=chunk*2;
+				cout<<ProcessesSizes[i]<<"  ";
 			}
 			ProcessesSizes[(_Processes*2)-2]=(LiveCellsRef.size()-((_Processes-1)*chunk))*2;
+			cout<<ProcessesSizes[(_Processes*2)-2]<<endl;
 			ProcessesSizes[(_Processes*2)-1]=chunk*2;
 		}
 		for(std::set<std::tuple<int, int> >::iterator it=LiveCellsRef.begin() ;it!=LiveCellsRef.end();++it,++size)
@@ -103,7 +104,6 @@ void ParallelConwaySimulator::step()
 		data[size++]=INT32_MIN; //just an indicator
 	}
 	int *counts=new int[_Processes*2];
-
 	MPI_Bcast(&data[0],size,MPI_INT,_Master,MPI_COMM_WORLD);
 	MPI_Scatter(ProcessesSizes,2,MPI_INT,counts,2,MPI_INT,_Master,MPI_COMM_WORLD);
 	if(rank!=_Master)
@@ -115,8 +115,9 @@ void ParallelConwaySimulator::step()
 			m_universe->turnOn(data[j],data[j+1]);
 		}
 	}
-	cout<<"machine "<<rank<<" cells "<<m_universe->aliveCells().size()<<endl;
+	//cout<<"machine "<<rank<<" cells "<<m_universe->aliveCells().size()<<endl;	
 	int start=rank*counts[1],end=start+counts[0];
+	//cout<<"machine "<<rank<<" start="<<start<<" end= "<<end<<endl;
 	auto prev = m_universe->clone();
 	m_universe->clear();
 	auto cells = prev->aliveCells();
@@ -187,6 +188,7 @@ void ParallelConwaySimulator::step()
 				m_universe->turnOn(data[j],data[j+1]);
 			}
 		}
+		//cout<<rank<<" here is fine"<<endl;
 	}
 	else
 	{
@@ -201,8 +203,10 @@ void ParallelConwaySimulator::step()
 		}
 		SendData[i++]=INT_MIN;  //just an indicator
 		MPI_Isend(SendData,i,MPI_INT,_Master,0,MPI_COMM_WORLD,&req);
+		//cout<<rank<<" here is fine"<<endl;
 	}
 }
+
 /*
 int*displacment= new int[_Processes]
 PrepareData(arr,ProcessesSizes,displacment);
