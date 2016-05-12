@@ -77,48 +77,58 @@ void ParallelConwaySimulator::step()
 		size=0;
 		auto LiveCellsRef= m_universe->aliveCells();
 		int chunk=LiveCellsRef.size()/_Processes;
-		for(int i=0;i<_Processes*2;i+=2)
+		if(chunk==0)
 		{
-			ProcessesSizes[i]=chunk*2;
-			ProcessesSizes[i+1]=chunk*2;
+			ProcessesSizes[0]=LiveCellsRef.size()*2;
+			ProcessesSizes[1]=LiveCellsRef.size()*2;
+			for(int i=2;i<_Processes*2;++i)
+				ProcessesSizes[i]=0;
 		}
-		ProcessesSizes[(_Processes*2)-2]=(LiveCellsRef.size()-((_Processes-1)*chunk))*2;
-		ProcessesSizes[(_Processes*2)-1]=chunk*2;
+		else
+		{
+			for(int i=0;i<_Processes*2;i+=2)
+			{
+				ProcessesSizes[i]=chunk*2;
+				ProcessesSizes[i+1]=chunk*2;
+			}
+			ProcessesSizes[(_Processes*2)-2]=(LiveCellsRef.size()-((_Processes-1)*chunk))*2;
+			ProcessesSizes[(_Processes*2)-1]=chunk*2;
+		}
 		for(std::set<std::tuple<int, int> >::iterator it=LiveCellsRef.begin() ;it!=LiveCellsRef.end();++it,++size)
 		{
 			data[size]=get<0>(*it);
 			data[++size]=get<1>(*it);
 		}
+
 		data[size++]=INT32_MIN; //just an indicator
 	}
 	int *counts=new int[_Processes*2];
 
 	MPI_Bcast(&data[0],size,MPI_INT,_Master,MPI_COMM_WORLD);
 	MPI_Scatter(ProcessesSizes,2,MPI_INT,counts,2,MPI_INT,_Master,MPI_COMM_WORLD);
-	auto aliveCells=m_universe->aliveCells();
 	if(rank!=_Master)
 	{
 		for(int j=0;;j+=2)
 		{
 			if(data[j]==INT32_MIN)
 				break;
-
-			aliveCells.insert(make_tuple(data[j],data[j+1]));
+			m_universe->turnOn(data[j],data[j+1]);
 		}
 	}
+	cout<<"machine "<<rank<<" cells "<<m_universe->aliveCells().size()<<endl;
 	int start=rank*counts[1],end=start+counts[0];
 	auto prev = m_universe->clone();
 	m_universe->clear();
 	auto cells = prev->aliveCells();
 	int ChunkPerThread=2;
 	int i;
-	cout<<omp_get_num_threads()<<endl;
+	
 #pragma omp parallel private(i)
 	{
 #pragma omp for schedule(dynamic,ChunkPerThread)
 		for (i=start;i<end;i+=2)
 		{
-			cout<<"machine "<<rank<<" thread "<<omp_get_thread_num()<<endl;
+			//cout<<"machine "<<rank<<" thread "<<omp_get_thread_num()<<endl;
 			int x =data[i] , y = data[i+1];
 			int n = prev->countNeighbours(x, y);
 
@@ -163,8 +173,6 @@ void ParallelConwaySimulator::step()
 				m_universe->turnOn(x+1, y+1);
 		}
 	}
-	auto chengedUniverse=m_universe->aliveCells();
-
 	if(rank==_Master)
 	{
 		for(int i=1;i<_Processes;++i)
@@ -176,7 +184,7 @@ void ParallelConwaySimulator::step()
 				{
 					break;
 				}
-				chengedUniverse.insert(make_tuple(data[j],data[j+1]));
+				m_universe->turnOn(data[j],data[j+1]);
 			}
 		}
 	}
@@ -185,6 +193,7 @@ void ParallelConwaySimulator::step()
 		int i=0;	
 		MPI_Request req;
 		int*SendData=new int[m_universe->aliveCells().size()*2];
+		auto chengedUniverse=m_universe->aliveCells();
 		for(std::set<std::tuple<int, int> >::iterator it=chengedUniverse.begin() ;it!=chengedUniverse.end();++it,++i)
 		{
 			SendData[i]=get<0>(*it);

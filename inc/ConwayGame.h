@@ -5,12 +5,12 @@
 #include "ConwayUniverse.h"
 #include "IConwaySimulator.h"
 #include <glm\glm.hpp>
-
+using namespace std;
 namespace ConwayGameOfLife{
 	//this is a typical Break Application 
     class ConwayGame: public Break::Infrastructure::Application {
 	public:
-        ConwayGame();
+        ConwayGame(string);
 
         ~ConwayGame();
 
@@ -29,8 +29,12 @@ namespace ConwayGameOfLife{
         void render() override;
 
 	private:
+		//number of conway game generations
+		int generations;
 		//size of the grid for drawing
 		int m_pixelSize;
+
+		void LoadFile(std::string );
 		//color of the grid
 		Break::Infrastructure::Color m_gridColor, m_cellColor;
 		//camera translation in cells
